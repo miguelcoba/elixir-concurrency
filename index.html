@@ -77,10 +77,204 @@ end
 						</code></pre>
 					</section>
 					<section>
-						<h2></h2>
-						<p></p>
-						<p class="fragment"></p>
-						<p class="fragment"></p>
+						<h2>spawn</h2>
+						<p class="fragment"><span class="fragment highlight-red">spawn/1</span> takes a <span class="fragment highlight-blue">function</span> which it will execute in another process.</p>
+						<p class="fragment">Returns a PID (process identifier)</p>
+						<p class="fragment">We can retrieve the PID of the current process by calling <span class="fragment highlight-red">self/0</span></p>
+						<p class="fragment"><span class="fragment highlight-red">Process.alive?/1</span> can check if a process exists and is alive</p>
+					</section>
+					<section>
+						<h2>spawn example</h2>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+iex> pid = spawn fn -> 1 + 2 end
+#PID<0.43.0>
+iex> Process.alive?(pid) # process is dead by now
+false
+iex> self()
+#PID<0.41.0>
+iex> Process.alive?(self())
+true
+						</code></pre>
+					</section>
+					<section>
+						<h2>send and receive</h2>
+						<p class="fragment">We can send messages to a process with <span class="fragment highlight-red">send/2</span> and receive them with <span class="fragment highlight-red">receive/1</span></p>
+						<p class="fragment">The process can be anyone, including the process itself</p>
+					</section>
+					<section>
+						<h2>send and receive example</h2>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+						<p>Send message to self</p>
+iex> send self(), {:hello, "world"}
+{:hello, "world"}
+iex> receive do
+...>   {:hello, msg} -> msg
+...>   {:world, msg} -> "won't match"
+...> end
+						</code></pre>
+					</section>
+					<section>
+						<h2>send and receive 2</h2>
+						<p class="fragment">Each process has a mailbox to receive messages</p>
+						<p class="fragment">Messages in mailbox are ordered by arrival time</p>
+						<p class="fragment">If there are no messages in the mailbox, or if none of them matches any of the patterns, the current process will wait until a matching message arrives</p>
+						<p class="fragment"><span class="fragment highlight-red">receve/1</span> can specify a timeout if needed</p>
+					</section>
+					<section>
+						<h2>send and receive example 2</h2>
+						<p>Specify a timeout when receiving messages</p>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+iex> receive do
+...>   {:hello, msg}  -> msg
+...> after
+...>   1000 -> "nothing happened"
+...> end
+						</code></pre>
+					</section>
+					<section>
+						<h2>send and receive example 3</h2>
+						<p>Send and receive messages between processes</p>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+iex> parent = self()
+#PID<0.41.0>
+iex> spawn fn -> send(parent, {:hello, self()}) end
+#PID<0.48.0>
+iex> receive do
+...>   {:hello, pid} -> "Got hello from #{inspect pid}"
+...> end
+"Got hello from #PID<0.48.0>"
+						</code></pre>
+					</section>
+					<section>
+						<h2>Counter example</h2>
+					</section>
+					<section>
+						<h2>server.ex</h2>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+defmodule Server do
+	def start do
+		pid = spawn(Server, :loop, [0])
+		:global.register_name(:counter, pid)
+	end
+
+	def loop(counter) do
+		receive do
+			{:next, sender} -> send sender, {:ok, counter}
+			loop(counter + 1)
+		after
+			2000 -> IO.puts "Just here, waiting..."
+			loop(counter)
+		end
+	end
+end
+						</code></pre>
+					</section>
+					<section>
+						<h2>client.ex</h2>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+defmodule Client do
+	def start do
+		counter_pid = :global.whereis_name(:counter)
+		loop(counter_pid)
+	end
+
+	def loop(counter_pid) do
+		send counter_pid, {:next, self}
+		receive do
+			{:ok, counter} -> IO.puts "Got #{counter}"
+		after
+			1000 -> "No answer :("
+		end
+		loop(counter_pid)
+	end
+end
+						</code></pre>
+					</section>
+					<section>
+						<h2>Connecting client to server</h2>
+						<h3>Single node</h3>
+					</section>
+					<section>
+						<h4>Terminal</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+$ iex
+Erlang/OTP 18 [erts-7.2.1] [source] [64-bit] [smp:8:8] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
+
+Interactive Elixir (1.2.1) - press Ctrl+C to exit (type h() ENTER for help)
+iex(1)> c "server.ex"
+[Server]
+iex(2)> c "client.ex"
+[Client]
+iex(3)> Server.start
+:yes
+Just here, waiting...
+Just here, waiting...
+iex(4)> Client.start
+Got 0
+Got 1
+Got 2
+						</code></pre>
+					</section>
+					<section>
+						<h2>Connecting client to server</h2>
+						<h3>Multi node</h3>
+					</section>
+					<section>
+						<h3>Start nodes and connect them</h3>
+						<h4>Terminal 1</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+$ iex --sname one
+Erlang/OTP 18 [erts-7.2.1] [source] [64-bit] [smp:8:8] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
+
+Interactive Elixir (1.2.1) - press Ctrl+C to exit (type h() ENTER for help)
+iex(one@arwen)1>
+						</code></pre>
+						<h4>Terminal 2</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+$ iex --sname two
+Erlang/OTP 18 [erts-7.2.1] [source] [64-bit] [smp:8:8] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
+
+Interactive Elixir (1.2.1) - press Ctrl+C to exit (type h() ENTER for help)
+iex(two@arwen)1> Node.connect :"one@arwen"
+true
+iex(two@arwen)2> Node.list
+[:one@arwen]
+iex(two@arwen)3>
+						</code></pre>
+					</section>
+					<section>
+						<h3>Load code</h3>
+						<h4>Terminal 1</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+iex(one@arwen)1> c "server.ex"
+[Server]
+iex(one@arwen)2>
+						</code></pre>
+						<h4>Terminal 2</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+iex(two@arwen)3> c "client.ex"
+[Client]
+iex(two@arwen)4>
+						</code></pre>
+					</section>
+					<section>
+						<h3>Connect client to server</h3>
+						<h4>Terminal 1</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+iex(one@arwen)2> Server.start
+:yes
+Just here, waiting...
+Just here, waiting...
+Just here, waiting...
+						</code></pre>
+						<h3>Terminal 2</h3>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+iex(two@arwen)4> Client.start
+Got 0
+Got 1
+Got 2
+Got 3
+						</code></pre>
 					</section>
 				</section>
 
