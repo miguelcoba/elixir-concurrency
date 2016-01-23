@@ -76,6 +76,9 @@ receive do
 end
 						</code></pre>
 					</section>
+				</section>
+
+				<section>
 					<section>
 						<h2>spawn</h2>
 						<p class="fragment"><span class="fragment highlight-red">spawn/1</span> takes a <span class="fragment highlight-blue">function</span> which it will execute in another process.</p>
@@ -147,25 +150,26 @@ iex> receive do
 					</section>
 					<section>
 						<h2>Counter example</h2>
+						<p>spawn version</p>
 					</section>
 					<section>
 						<h2>server.ex</h2>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
 defmodule Server do
-	def start do
-		pid = spawn(Server, :loop, [0])
-		:global.register_name(:counter, pid)
-	end
+  def start do
+    pid = spawn(Server, :loop, [0])
+    :global.register_name(:counter, pid)
+  end
 
-	def loop(counter) do
-		receive do
-			{:next, sender} -> send sender, {:ok, counter}
-			loop(counter + 1)
-		after
-			2000 -> IO.puts "Just here, waiting..."
-			loop(counter)
-		end
-	end
+  def loop(counter) do
+    receive do
+      {:next, sender} -> send sender, {:ok, counter}
+      loop(counter + 1)
+    after
+      2000 -> IO.puts "Just here, waiting..."
+      loop(counter)
+    end
+  end
 end
 						</code></pre>
 					</section>
@@ -173,20 +177,20 @@ end
 						<h2>client.ex</h2>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
 defmodule Client do
-	def start do
-		counter_pid = :global.whereis_name(:counter)
-		loop(counter_pid)
-	end
+  def start do
+    counter_pid = :global.whereis_name(:counter)
+    loop(counter_pid)
+  end
 
-	def loop(counter_pid) do
-		send counter_pid, {:next, self}
-		receive do
-			{:ok, counter} -> IO.puts "Got #{counter}"
-		after
-			1000 -> "No answer :("
-		end
-		loop(counter_pid)
-	end
+  def loop(counter_pid) do
+    send counter_pid, {:next, self}
+    receive do
+      {:ok, counter} -> IO.puts "Got #{counter}"
+    after
+      1000 -> "No answer :("
+    end
+    loop(counter_pid)
+  end
 end
 						</code></pre>
 					</section>
@@ -275,6 +279,167 @@ Got 1
 Got 2
 Got 3
 						</code></pre>
+					</section>
+				</section>
+
+				<section>
+					<section>
+						<h2>GenServer</h2>
+						<p class="fragment">It is a behaviour module for implementing the server of a client-server relation</p>
+						<p class="fragment">It is a process like any other Elixir process</p>
+						<p class="fragment">It can be used to keep state, execute code asynchronously</p>
+						<p class="fragment">It has a standard set of interface functions</p>
+						<p class="fragment">It includes functionality for tracing and error reporting</p>
+					</section>
+					<section>
+						<h2>GenServer example</h2>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+defmodule Stack do
+  use GenServer
+
+  # Callbacks
+  def handle_call(:pop, _from, [h|t]) do
+    {:reply, h, t}
+  end
+
+  def handle_cast({:push, item}, state) do
+    {:noreply, [item|state]}
+  end
+end
+
+# Start the server
+{:ok, pid} = GenServer.start_link(Stack, [:hello])
+
+# This is the client
+GenServer.call(pid, :pop)
+#=> :hello
+
+GenServer.cast(pid, {:push, :world})
+#=> :ok
+
+GenServer.call(pid, :pop)
+#=> :world
+						</code></pre>
+					</section>
+					<section>
+						<h2>Counter example</h2>
+						<p>GemServer version</p>
+					</section>
+					<section>
+						<h2>server.ex</h2>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+defmodule GenServer.Server do
+  use GenServer
+
+  def start do
+    GenServer.start_link(GenServer.Server, 0, name: {:global, :counter})
+  end
+
+  def next do
+    GenServer.call({:global, :counter}, :next)
+  end
+
+  # Implementation
+  def handle_call(:next, _from, counter) do
+    {:reply, counter, counter + 1}
+  end
+end
+						</code></pre>
+					</section>
+					<section>
+						<h2>client.ex</h2>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+defmodule GenServer.Client do
+  def start do
+    loop
+  end
+
+  def loop do
+    counter = GenServer.Server.next
+    IO.puts "Got #{counter}"
+    loop
+  end
+end
+						</code></pre>
+					</section>
+					<section>
+						<h2>Connecting client to server</h2>
+						<h3>Single node</h3>
+					</section>
+					<section>
+						<h4>Terminal</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+$ iex -S mix
+Erlang/OTP 18 [erts-7.2.1] [source] [64-bit] [smp:8:8] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
+
+Interactive Elixir (1.2.1) - press Ctrl+C to exit (type h() ENTER for help)
+iex(1)> GenServer.Server.start
+{:ok, #PID<0.106.0>}
+iex(2)> GenServer.Client.start
+Got 0
+Got 1
+Got 2
+Got 3
+						</code></pre>
+					</section>
+					<section>
+						<h2>Connecting client to server</h2>
+						<h3>Multi node</h3>
+					</section>
+					<section>
+						<h3>Start nodes and connect them</h3>
+						<h4>Terminal 1</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+$ iex --sname one -S mix
+Erlang/OTP 18 [erts-7.2.1] [source] [64-bit] [smp:8:8] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
+
+Interactive Elixir (1.2.1) - press Ctrl+C to exit (type h() ENTER for help)
+iex(one@arwen)1>
+						</code></pre>
+						<h4>Terminal 2</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+$ iex --sname two -S mix
+Erlang/OTP 18 [erts-7.2.1] [source] [64-bit] [smp:8:8] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
+
+Interactive Elixir (1.2.1) - press Ctrl+C to exit (type h() ENTER for help)
+iex(two@arwen)1> Node.connect :"one@arwen"
+true
+iex(two@arwen)2> Node.list
+[:one@arwen]
+iex(two@arwen)3>
+						</code></pre>
+					</section>
+					<section>
+						<h3>Connect client to server</h3>
+						<h4>Terminal 1</h4>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+iex(one@arwen)1> GenServer.Server.start
+{:ok, #PID<0.96.0>}
+iex(one@arwen)2>
+						</code></pre>
+						<h3>Terminal 2</h3>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
+iex(two@arwen)3> GenServer.Client.start
+Got 0
+Got 1
+Got 2
+Got 3
+						</code></pre>
+					</section>
+					<section>
+						<h3>GenServer summary</h3>
+						<p class="fragment">Only required to implement the callbacks and functionality we are interested in</p>
+						<p class="fragment"><span class="fragment highlight-red">call</span> messages expect a reply from the server (and are therefore synchronous) </p>
+						<p class="fragment"><span class="fragment highlight-red">cast</span> messages do not</p>
+					</section>
+				</section>
+
+				<section>
+					<section>
+						<h3>Slides</h3>
+						<p><a href=" http://miguelcoba.github.io/elixir-concurrency">http://miguelcoba.github.io/elixir-concurrency</a></p>
+						<h3>Source code</h3>
+						<p><a href="https://github.com/miguelcoba/elixir-concurrency-code">https://github.com/miguelcoba/elixir-concurrency-code</a></p>
 					</section>
 				</section>
 
