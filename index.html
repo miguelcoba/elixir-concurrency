@@ -66,7 +66,7 @@
 parent = self()
 
 # Spawns an Elixir process (not an operating system one!)
-spawn_link(fn ->
+spawn(fn ->
   send parent, {:msg, "hello world"}
 end)
 
@@ -106,8 +106,8 @@ true
 					</section>
 					<section>
 						<h2>send and receive example</h2>
-						<pre><code class="elixir" data-trim style="font-size: 18px;">
 						<p>Send message to self</p>
+						<pre><code class="elixir" data-trim style="font-size: 18px;">
 iex> send self(), {:hello, "world"}
 {:hello, "world"}
 iex> receive do
@@ -183,7 +183,7 @@ defmodule Client do
   end
 
   def loop(counter_pid) do
-    send counter_pid, {:next, self}
+    send counter_pid, {:next, self()}
     receive do
       {:ok, counter} -> IO.puts "Got #{counter}"
     after
@@ -351,13 +351,13 @@ end
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
 defmodule GenServer.Client do
   def start do
-    loop
+    loop()
   end
 
   def loop do
     counter = GenServer.Server.next
     IO.puts "Got #{counter}"
-    loop
+    loop()
   end
 end
 						</code></pre>
