@@ -121,17 +121,17 @@ iex> receive do
 						<p class="fragment">Each process has a mailbox to receive messages</p>
 						<p class="fragment">Messages in mailbox are ordered by arrival time</p>
 						<p class="fragment">If there are no messages in the mailbox, or if none of them matches any of the patterns, the current process will wait until a matching message arrives</p>
-						<p class="fragment"><span class="fragment highlight-red">receve/1</span> can specify a timeout if needed</p>
+						<p class="fragment"><span class="fragment highlight-red">receive/1</span> can specify a timeout if needed</p>
 					</section>
 					<section>
 						<h2>send and receive example 2</h2>
 						<p>Specify a timeout when receiving messages</p>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-iex> receive do
-...>   {:hello, msg}  -> msg
-...> after
-...>   1000 -> "nothing happened"
-...> end
+receive do
+  {:hello, msg}  -> msg
+after
+  1000 -> "nothing happened"
+end
 						</code></pre>
 					</section>
 					<section>
@@ -351,7 +351,7 @@ Got 3
 				<section>
 					<section>
 						<h2>GenServer</h2>
-						<p class="fragment">It is a behaviour module for implementing the server of a client-server relation</p>
+						<p class="fragment">It is a behaviour module for implementing the server part of a client-server relation</p>
 						<p class="fragment">It is a process like any other Elixir process</p>
 						<p class="fragment">It can be used to keep state, execute code asynchronously</p>
 						<p class="fragment">It has a standard set of interface functions</p>
@@ -421,7 +421,7 @@ defmodule GenServer.Client do
   end
 
   def loop do
-    counter = GenServer.Server.next
+    counter = GenServer.Server.next()
     IO.puts "Got #{counter}"
     loop()
   end
@@ -435,13 +435,17 @@ end
 					<section>
 						<h4>Terminal</h4>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-$ iex -S mix
+$ iex
 Erlang/OTP 18 [erts-7.2.1] [source] [64-bit] [smp:8:8] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
 
 Interactive Elixir (1.2.1) - press Ctrl+C to exit (type h() ENTER for help)
-iex(1)> GenServer.Server.start
-{:ok, #PID<0.106.0>}
-iex(2)> GenServer.Client.start
+iex(1)> c "server.ex"
+[GenServer.Server]
+iex(2)> c "client.ex"
+[GenServer.Client]
+iex(3)> GenServer.Server.start
+{:ok, #PID<0.98.0>}
+iex(4)> GenServer.Client.start
 Got 0
 Got 1
 Got 2
@@ -456,36 +460,40 @@ Got 3
 						<h3>Start nodes and connect them</h3>
 						<h4>Terminal 1</h4>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-$ iex --sname one -S mix
+$ iex --sname one
 Erlang/OTP 18 [erts-7.2.1] [source] [64-bit] [smp:8:8] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
 
 Interactive Elixir (1.2.1) - press Ctrl+C to exit (type h() ENTER for help)
-iex(one@arwen)1>
+iex(one@arwen)1> c "server.ex"
+[GenServer.Server]
 						</code></pre>
 						<h4>Terminal 2</h4>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-$ iex --sname two -S mix
+$ iex --sname two
 Erlang/OTP 18 [erts-7.2.1] [source] [64-bit] [smp:8:8] [async-threads:10] [hipe] [kernel-poll:false] [dtrace]
 
 Interactive Elixir (1.2.1) - press Ctrl+C to exit (type h() ENTER for help)
-iex(two@arwen)1> Node.connect :"one@arwen"
+iex(one@arwen)1> c "server.ex"
+[GenServer.Server]
+iex(one@arwen)2> c "client.ex"
+[GenServer.Client]
+iex(two@arwen)3> Node.connect :"one@arwen"
 true
-iex(two@arwen)2> Node.list
+iex(two@arwen)4> Node.list
 [:one@arwen]
-iex(two@arwen)3>
 						</code></pre>
 					</section>
 					<section>
 						<h3>Connect client to server</h3>
 						<h4>Terminal 1</h4>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-iex(one@arwen)1> GenServer.Server.start
+iex(one@arwen)2> GenServer.Server.start
 {:ok, #PID<0.96.0>}
-iex(one@arwen)2>
+iex(one@arwen)3>
 						</code></pre>
 						<h3>Terminal 2</h3>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-iex(two@arwen)3> GenServer.Client.start
+iex(two@arwen)5> GenServer.Client.start
 Got 0
 Got 1
 Got 2
@@ -526,28 +534,30 @@ iex(client@192.168.0.2)3>
 						<h3>Load code</h3>
 						<h4>Machine 1</h4>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-iex(server@192.168.0.1)1> c "server.ex"
+iex(server@192.168.0.1)2> c "server.ex"
 [GenServer.Server]
-iex(server@192.168.0.1)2>
+iex(server@192.168.0.1)3>
 						</code></pre>
 						<h4>Machine 2</h4>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-iex(client@192.168.0.2)3> c "client.ex"
+iex(server@192.168.0.1)4> c "server.ex"
+[GenServer.Server]
+iex(client@192.168.0.2)5> c "client.ex"
 [GenServer.Client]
-iex(client@192.168.0.2)4>
+iex(client@192.168.0.2)6>
 						</code></pre>
 					</section>
 					<section>
 						<h3>Connect client to server</h3>
 						<h4>Machine 1</h4>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-iex(server@192.168.0.1)2> GenServer.Server.start
+iex(server@192.168.0.1)7> GenServer.Server.start
 {:ok, #PID<0.96.0>}
-iex(server@192.168.0.1)3>
+iex(server@192.168.0.1)8>
 						</code></pre>
 						<h3>Machine 2</h3>
 						<pre><code class="elixir" data-trim style="font-size: 18px;">
-iex(client@192.168.0.2)4> GenServer.Client.start
+iex(client@192.168.0.2)7> GenServer.Client.start
 Got 0
 Got 1
 Got 2

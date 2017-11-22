@@ -1,6 +1,6 @@
-# Ember.js Introduction
+# Elixir Concurrency
 
-A practical introduction to [ember.js](http://emberjs.com/).
+Elixir Concurrency
 
 ## License
 
@@ -12,4 +12,4 @@ Code examples are
 
 MIT licensed
 
-Copyright (C) 2015 Miguel Cobá, http://miguel.leugim.com.mx
+Copyright (C) 2017 Miguel Cobá, https://github.com/miguelcoba
